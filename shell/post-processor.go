@@ -191,7 +191,7 @@ func (p *ShellPostProcessor) PostProcess(ui packer.Ui, artifact packer.Artifact)
 	envVars[1] = "PACKER_BUILDER_TYPE=" + p.cfg.PackerBuilderType
 	copy(envVars[2:], p.cfg.Vars)
 
-	for _, artifact := range artifact.Files() {
+	for _, art := range artifact.Files() {
 
 		for _, path := range scripts {
 			ui.Say(fmt.Sprintf("Process with shell script: %s", path))
@@ -203,8 +203,8 @@ func (p *ShellPostProcessor) PostProcess(ui packer.Ui, artifact packer.Artifact)
 			}
 			defer f.Close()
 
-			ui.Message(fmt.Sprintf("Executing script with artifact: %s", artifact))
-			args := []string{path, artifact}
+			ui.Message(fmt.Sprintf("Executing script with artifact: %s", art))
+			args := []string{path, art}
 			cmd := exec.Command("/bin/sh", args...)
 			var buffer bytes.Buffer
 			cmd.Stdout = &buffer
