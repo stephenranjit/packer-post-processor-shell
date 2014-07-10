@@ -158,7 +158,7 @@ func (p *ShellPostProcessor) Configure(raws ...interface{}) error {
 
 func (p *ShellPostProcessor) PostProcess(ui packer.Ui, artifact packer.Artifact) (packer.Artifact, bool, error) {
 	scripts := make([]string, len(p.cfg.Scripts))
-	copy(scripts, p.config.Scripts)
+	copy(scripts, p.cfg.Scripts)
 
 	if p.cfg.Inline != nil {
 		tf, err := ioutil.TempFile("", "packer-shell")
@@ -199,12 +199,12 @@ func (p *ShellPostProcessor) PostProcess(ui packer.Ui, artifact packer.Artifact)
 			log.Printf("Opening %s for reading", path)
 			f, err := os.Open(path)
 			if err != nil {
-				return fmt.Errorf("Error opening shell script: %s", err)
+				return nil, false, fmt.Errorf("Error opening shell script: %s", err)
 			}
 			defer f.Close()
 
 			ui.Message(fmt.Sprintf("Executing script with artifact: %s", artifact))
-			cmd := exec.Command("/bin/sh", "-c", path...)
+			cmd := exec.Command("/bin/sh", "-c", path)
 			var buffer bytes.Buffer
 			cmd.Stdout = &buffer
 			cmd.Stderr = &buffer
@@ -214,10 +214,6 @@ func (p *ShellPostProcessor) PostProcess(ui packer.Ui, artifact packer.Artifact)
 				return nil, false, fmt.Errorf("Unable to execute script: %s", buffer.String())
 			}
 			ui.Message(fmt.Sprintf("%s", buffer.String()))
-
-			if cmd.ExitStatus != 0 {
-				return nil, false, fmt.Errorf("Script exited with non-zero exit status: %d", cmd.ExitStatus)
-			}
 		}
 	}
 	return artifact, false, nil
