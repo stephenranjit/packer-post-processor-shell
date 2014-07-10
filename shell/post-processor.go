@@ -204,7 +204,8 @@ func (p *ShellPostProcessor) PostProcess(ui packer.Ui, artifact packer.Artifact)
 			defer f.Close()
 
 			ui.Message(fmt.Sprintf("Executing script with artifact: %s", artifact))
-			cmd := exec.Command("/bin/sh", []string{path}...)
+			args := []string{path, artifact}
+			cmd := exec.Command("/bin/sh", args...)
 			var buffer bytes.Buffer
 			cmd.Stdout = &buffer
 			cmd.Stderr = &buffer
