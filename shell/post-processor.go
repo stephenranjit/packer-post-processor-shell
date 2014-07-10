@@ -32,13 +32,10 @@ type Config struct {
 	// your command(s) are executed.
 	Vars []string `mapstructure:"environment_vars"`
 
-	// The command used to execute the script. The '{{ .Path }}' variable
-	// should be used to specify where the script goes, {{ .Vars }}
-	// can be used to inject the environment_vars into the environment.
-	ExecuteCommand string `mapstructure:"execute_command"`
-
 	// An array of multiple scripts to run.
 	Scripts []string `mapstructure:"scripts"`
+
+	TargetPath string `mapstructure:"target"`
 
 	tpl *packer.ConfigTemplate
 }
@@ -58,6 +55,8 @@ func (p *ShellPostProcessor) Configure(raws ...interface{}) error {
 	if err != nil {
 		return err
 	}
+
+	errs := new(packer.MultiError)
 
 	if p.cfg.InlineShebang == "" {
 		p.cfg.InlineShebang = "/bin/sh"
@@ -86,7 +85,9 @@ func (p *ShellPostProcessor) Configure(raws ...interface{}) error {
 	}
 	p.cfg.tpl.UserVars = p.cfg.PackerUserVars
 
-	errs := new(packer.MultiError)
+	if p.cfg.TargetPath == "" {
+		p.cfg.TargetPath = "packer_{{ .BuildName }}_{{.Provider}}"
+	}
 
 	if err = p.cfg.tpl.Validate(p.cfg.TargetPath); err != nil {
 		errs = packer.MultiErrorAppend(
@@ -127,7 +128,7 @@ func (p *ShellPostProcessor) Configure(raws ...interface{}) error {
 	if len(p.cfg.Scripts) == 0 && p.cfg.Inline == nil {
 		errs = packer.MultiErrorAppend(errs,
 			errors.New("Either a script file or inline script must be specified."))
-	} else if len(p.config.Scripts) > 0 && p.config.Inline != nil {
+	} else if len(p.cfg.Scripts) > 0 && p.cfg.Inline != nil {
 		errs = packer.MultiErrorAppend(errs,
 			errors.New("Only a script file or an inline script can be specified, not both."))
 	}
@@ -162,7 +163,7 @@ func (p *ShellPostProcessor) PostProcess(ui packer.Ui, artifact packer.Artifact)
 	if p.cfg.Inline != nil {
 		tf, err := ioutil.TempFile("", "packer-shell")
 		if err != nil {
-			return fmt.Errorf("Error preparing shell script: %s", err)
+			return nil, false, fmt.Errorf("Error preparing shell script: %s", err)
 		}
 		defer os.Remove(tf.Name())
 
@@ -174,12 +175,12 @@ func (p *ShellPostProcessor) PostProcess(ui packer.Ui, artifact packer.Artifact)
 		writer.WriteString(fmt.Sprintf("#!%s\n", p.cfg.InlineShebang))
 		for _, command := range p.cfg.Inline {
 			if _, err := writer.WriteString(command + "\n"); err != nil {
-				return fmt.Errorf("Error preparing shell script: %s", err)
+				return nil, false, fmt.Errorf("Error preparing shell script: %s", err)
 			}
 		}
 
 		if err := writer.Flush(); err != nil {
-			return fmt.Errorf("Error preparing shell script: %s", err)
+			return nil, false, fmt.Errorf("Error preparing shell script: %s", err)
 		}
 
 		tf.Close()
@@ -215,7 +216,7 @@ func (p *ShellPostProcessor) PostProcess(ui packer.Ui, artifact packer.Artifact)
 			ui.Message(fmt.Sprintf("%s", buffer.String()))
 
 			if cmd.ExitStatus != 0 {
-				return fmt.Errorf("Script exited with non-zero exit status: %d", cmd.ExitStatus)
+				return nil, false, fmt.Errorf("Script exited with non-zero exit status: %d", cmd.ExitStatus)
 			}
 		}
 	}
