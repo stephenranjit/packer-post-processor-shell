@@ -7,6 +7,6 @@ func main() {
 	if err != nil {
 		panic(err)
 	}
-	server.RegisterPostProcessor(new(ovftool.ShellPostProcessor))
+	server.RegisterPostProcessor(new(shell.ShellPostProcessor))
 	server.Serve()
 }
