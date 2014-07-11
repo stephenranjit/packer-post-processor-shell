@@ -191,9 +191,14 @@ func (p *ShellPostProcessor) PostProcess(ui packer.Ui, artifact packer.Artifact)
 	envVars[1] = "PACKER_BUILDER_TYPE=" + p.cfg.PackerBuilderType
 	copy(envVars[2:], p.cfg.Vars)
 
-	for _, art := range artifact.Files() {
-
+	files := artifact.Files()
+	var stderr bytes.Buffer
+	var stdout bytes.Buffer
+	fmt.Printf("%+v\n", artifact)
+	for _, art := range files {
 		for _, path := range scripts {
+			stderr.Reset()
+			stdout.Reset()
 			ui.Say(fmt.Sprintf("Process with shell script: %s", path))
 
 			log.Printf("Opening %s for reading", path)
@@ -206,15 +211,14 @@ func (p *ShellPostProcessor) PostProcess(ui packer.Ui, artifact packer.Artifact)
 			ui.Message(fmt.Sprintf("Executing script with artifact: %s", art))
 			args := []string{path, art}
 			cmd := exec.Command("/bin/sh", args...)
-			var buffer bytes.Buffer
-			cmd.Stdout = &buffer
-			cmd.Stderr = &buffer
+			cmd.Stdout = &stdout
+			cmd.Stderr = &stderr
 			cmd.Env = envVars
 			err = cmd.Run()
 			if err != nil {
-				return nil, false, fmt.Errorf("Unable to execute script: %s", buffer.String())
+				return nil, false, fmt.Errorf("Unable to execute script: %s", stderr.String())
 			}
-			ui.Message(fmt.Sprintf("%s", buffer.String()))
+			ui.Message(fmt.Sprintf("%s", stderr.String()))
 		}
 	}
 	return artifact, false, nil
